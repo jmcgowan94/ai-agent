@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from prompts import system_prompt
+from call_function import available_functions
 
 def main():
     # Load environment variables from .env file
@@ -28,18 +29,27 @@ def main():
     response = client.models.generate_content(
         model='gemini-2.5-flash',
         contents=messages,
-        config=types.GenerateContentConfig(system_instruction=system_prompt)
+        config=types.GenerateContentConfig(tools=[available_functions],
+                                           system_instruction=system_prompt)
     )
     # Confirm we received a response from the API
     if response.usage_metadata is None:
         raise RuntimeError("API request failed.")
     
-    # Print response, as well as token usage metadata
+    # Print token usage metadata
     if args.verbose:
         print(f"User prompt: {args.user_prompt}")
         print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
         print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
+
+    # Check if function_calls property is not None. If not, iterate over the called functions
+    if response.function_calls is not None:
+        for function_call in response.function_calls:
+            print(f'Calling function {function_call.name}({function_call.args})')
+
+    # Print response
     print(response.text)
+
 
 # Run main
 if __name__ == "__main__":
